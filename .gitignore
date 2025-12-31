@@ -1,0 +1,45 @@
+# Backend (Java/Spring Boot)
+backend/target/
+backend/*.log
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+backend/.DS_Store
+
+# Frontend (React/TypeScript)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/.vite/
+frontend/coverage/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+*.db
+
+# Logs
+*.log
+logs/
+
+# Temp files
+*.tmp
+*.bak
+*.cache
+
+# Build artifacts
+*.class
+*.jar
+!backend/lib/*.jar
