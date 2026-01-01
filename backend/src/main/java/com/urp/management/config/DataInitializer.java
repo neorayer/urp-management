@@ -118,6 +118,15 @@ public class DataInitializer implements CommandLineRunner {
                 .permissions(new HashSet<>(auditorPerms))
                 .build();
         roleRepository.save(auditor);
+        
+        // Basic User role - default role for new users
+        Role user = Role.builder()
+                .name("User")
+                .description("Basic user with minimal permissions")
+                .isSystem(true)
+                .permissions(new HashSet<>()) // No special permissions - users can manage their own profile via self-service endpoints
+                .build();
+        roleRepository.save(user);
     }
     
     private void initializeAdminUser() {

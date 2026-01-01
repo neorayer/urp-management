@@ -75,6 +75,30 @@ public class UserService {
         
         user = userRepository.save(user);
         
+        // Auto-assign default "User" role to new users
+        Role defaultRole = roleRepository.findByName("User")
+                .orElseThrow(() -> new RuntimeException("Default User role not found"));
+        
+        User grantedBy = null;
+        try {
+            grantedBy = getCurrentUser();
+        } catch (Exception e) {
+            // Current user might not exist during initial setup - that's okay
+        }
+        
+        UserRole userRole = UserRole.builder()
+                .user(user)
+                .role(defaultRole)
+                .scopeType(request.getTenantId() != null ? 
+                        com.urp.management.domain.enums.ScopeType.TENANT : 
+                        com.urp.management.domain.enums.ScopeType.GLOBAL)
+                .scopeId(request.getTenantId() != null ? 
+                        request.getTenantId().toString() : null)
+                .grantedBy(grantedBy)
+                .build();
+        
+        userRoleRepository.save(userRole);
+        
         auditService.log("USER_CREATED", "User", user.getId().toString(), 
                 null, getCurrentUserId());
         
