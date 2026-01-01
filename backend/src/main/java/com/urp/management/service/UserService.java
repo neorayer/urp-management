@@ -57,7 +57,7 @@ public class UserService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .displayName(request.getDisplayName())
                 .phone(request.getPhone())
-                .status(request.getStatus())
+                .status(request.getStatus() != null ? request.getStatus() : UserStatus.ACTIVE)
                 .emailVerified(false)
                 .mfaEnabled(false)
                 .locale(request.getLocale())
@@ -84,6 +84,15 @@ public class UserService {
         
         UserStatus oldStatus = user.getStatus();
         user.setStatus(status);
+        
+        if (status != UserStatus.BANNED) {
+            user.setBannedAt(null);
+            user.setBanReason(null);
+            user.setBanExpiresAt(null);
+        } else if (user.getBannedAt() == null) {
+            user.setBannedAt(LocalDateTime.now());
+        }
+        
         user = userRepository.save(user);
         
         auditService.log("USER_STATUS_UPDATED", "User", id.toString(),
@@ -96,6 +105,10 @@ public class UserService {
     public UserResponse banUser(Long id, String reason, LocalDateTime expiresAt) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (reason == null || reason.isBlank()) {
+            throw new RuntimeException("Ban reason is required");
+        }
         
         user.setStatus(UserStatus.BANNED);
         user.setBannedAt(LocalDateTime.now());
@@ -117,6 +130,12 @@ public class UserService {
         
         Role role = roleRepository.findById(request.getRoleId())
                 .orElseThrow(() -> new RuntimeException("Role not found"));
+        
+        boolean alreadyAssigned = userRoleRepository.existsByUserIdAndRoleIdAndScopeTypeAndScopeId(
+                userId, role.getId(), request.getScopeType(), request.getScopeId());
+        if (alreadyAssigned) {
+            throw new RuntimeException("Role already assigned for this scope");
+        }
         
         User currentUser = getCurrentUser();
         
@@ -140,7 +159,10 @@ public class UserService {
     }
     
     public void removeRole(Long userId, Long userRoleId) {
-        userRoleRepository.deleteById(userRoleId);
+        UserRole userRole = userRoleRepository.findByIdAndUserId(userRoleId, userId)
+                .orElseThrow(() -> new RuntimeException("Role assignment not found for user"));
+        
+        userRoleRepository.delete(userRole);
         
         auditService.log("ROLE_REMOVED", "UserRole", userRoleId.toString(),
                 String.format("{\"userId\":%d}", userId),

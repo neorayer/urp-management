@@ -33,11 +33,14 @@ function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="users/new" element={<UserDetailPage />} />
-        <Route path="users/:id" element={<UserDetailPage />} />
-        <Route path="roles" element={<RolesPage />} />
-        <Route path="roles/:id" element={<RoleDetailPage />} />
+        <Route path="users">
+          <Route index element={<UsersPage />} />
+          <Route path=":id" element={<UserDetailPage />} />
+        </Route>
+        <Route path="roles">
+          <Route index element={<RolesPage />} />
+          <Route path=":id" element={<RoleDetailPage />} />
+        </Route>
         <Route path="audit-logs" element={<AuditLogsPage />} />
       </Route>
     </Routes>

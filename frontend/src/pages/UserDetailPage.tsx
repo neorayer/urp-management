@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi } from '@/services/userService';
+import { roleApi } from '@/services/roleService';
 import { User, Shield, Activity, Lock, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,14 +11,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CreateUserRequest, UserStatus } from '@/types';
-import { useState } from 'react';
+import { CreateUserRequest, ScopeType, UserStatus } from '@/types';
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNewUser = id === 'new';
+  
+  console.log('UserDetailPage - id:', id, 'isNewUser:', isNewUser);
 
   const [formData, setFormData] = useState<CreateUserRequest>({
     email: '',
@@ -26,11 +29,31 @@ export default function UserDetailPage() {
     phone: '',
     status: UserStatus.ACTIVE,
   });
+  const [statusUpdate, setStatusUpdate] = useState<UserStatus>(UserStatus.ACTIVE);
+  const [banReason, setBanReason] = useState('');
+  const [banExpiresAt, setBanExpiresAt] = useState('');
+  const [assignForm, setAssignForm] = useState<{
+    roleId: number | '';
+    scopeType: ScopeType;
+    scopeId: string;
+    expiresAt: string;
+  }>({
+    roleId: '',
+    scopeType: ScopeType.GLOBAL,
+    scopeId: '',
+    expiresAt: '',
+  });
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['user', id],
     queryFn: () => userApi.getUserById(Number(id)),
     enabled: !!id && !isNewUser,
+  });
+  
+  const { data: availableRoles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: roleApi.getAllRoles,
+    enabled: !isNewUser,
   });
 
   const createUserMutation = useMutation({
@@ -40,20 +63,82 @@ export default function UserDetailPage() {
       navigate(`/users/${newUser.id}`);
     },
   });
+  
+  const handleStatusUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || isNewUser) return;
+    updateStatusMutation.mutate(statusUpdate);
+  };
+  
+  const handleBanSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || isNewUser) return;
+    banUserMutation.mutate();
+  };
+  
+  const handleAssignRole = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || isNewUser || assignForm.roleId === '') return;
+    assignRoleMutation.mutate();
+  };
+  
+  const updateStatusMutation = useMutation({
+    mutationFn: (status: UserStatus) => userApi.updateUserStatus(Number(id), status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', id] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+  
+  const banUserMutation = useMutation({
+    mutationFn: () => userApi.banUser(Number(id), banReason, banExpiresAt || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', id] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setBanReason('');
+      setBanExpiresAt('');
+    },
+  });
+  
+  const assignRoleMutation = useMutation({
+    mutationFn: () =>
+      userApi.assignRole(Number(id), {
+        roleId: Number(assignForm.roleId),
+        scopeType: assignForm.scopeType,
+        scopeId: assignForm.scopeId || undefined,
+        expiresAt: assignForm.expiresAt || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', id] });
+      setAssignForm({
+        roleId: '',
+        scopeType: ScopeType.GLOBAL,
+        scopeId: '',
+        expiresAt: '',
+      });
+    },
+  });
+  
+  const removeRoleMutation = useMutation({
+    mutationFn: (userRoleId: number) => userApi.removeRole(Number(id), userRoleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', id] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+  
+  useEffect(() => {
+    if (user) {
+      setStatusUpdate(user.status);
+    }
+  }, [user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createUserMutation.mutate(formData);
   };
 
-  if (isLoading) {
-    return <div className="text-center py-12">Loading...</div>;
-  }
-
-  if (!isNewUser && !user) {
-    return <div className="text-center py-12">User not found</div>;
-  }
-
+  // Check for new user first before loading states
   if (isNewUser) {
     return (
       <div className="space-y-6">
@@ -167,6 +252,15 @@ export default function UserDetailPage() {
     );
   }
 
+  // Loading and error states for existing user
+  if (isLoading) {
+    return <div className="text-center py-12">Loading...</div>;
+  }
+
+  if (!user) {
+    return <div className="text-center py-12">User not found</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -215,19 +309,197 @@ export default function UserDetailPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border border-border/70">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Account Controls</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <form onSubmit={handleStatusUpdate} className="space-y-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="statusSelect">Status</Label>
+                    <Select
+                      value={statusUpdate}
+                      onValueChange={(value) => setStatusUpdate(value as UserStatus)}
+                    >
+                      <SelectTrigger id="statusSelect">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(UserStatus).map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status.replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" disabled={updateStatusMutation.isPending}>
+                    {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
+                  </Button>
+                </div>
+                {updateStatusMutation.isError && (
+                  <p className="text-sm text-destructive">Failed to update status.</p>
+                )}
+              </form>
+
+              <div className="rounded-lg border border-border/70 bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Ban User</p>
+                    <p className="text-xs text-muted-foreground">
+                      Add a ban reason and optional expiry.
+                    </p>
+                  </div>
+                  {user.status === UserStatus.BANNED && (
+                    <Badge variant="destructive" className="uppercase">
+                      Banned
+                    </Badge>
+                  )}
+                </div>
+                <form onSubmit={handleBanSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="banReason">Reason</Label>
+                      <Input
+                        id="banReason"
+                        required
+                        value={banReason}
+                        onChange={(e) => setBanReason(e.target.value)}
+                        placeholder="Violation of policy"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="banExpires">Expires At (optional)</Label>
+                      <Input
+                        id="banExpires"
+                        type="datetime-local"
+                        value={banExpiresAt}
+                        onChange={(e) => setBanExpiresAt(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      disabled={banUserMutation.isPending}
+                    >
+                      {banUserMutation.isPending ? 'Applying ban...' : 'Ban User'}
+                    </Button>
+                    {user.status === UserStatus.BANNED && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => updateStatusMutation.mutate(UserStatus.ACTIVE)}
+                        disabled={updateStatusMutation.isPending}
+                      >
+                        Unban & Activate
+                      </Button>
+                    )}
+                  </div>
+                  {banUserMutation.isError && (
+                    <p className="text-sm text-destructive">Failed to ban user.</p>
+                  )}
+                </form>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border border-border/70">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div className="flex items-center gap-2">
                 <Shield className="h-5 w-5 text-primary" />
                 <CardTitle className="text-lg">Roles & Permissions</CardTitle>
               </div>
-              <Button size="sm">
-                Assign Role
-              </Button>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="space-y-6">
+              <form
+                onSubmit={handleAssignRole}
+                className="rounded-lg border border-border/70 bg-muted/30 p-4 space-y-4"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="roleSelect">Role</Label>
+                    <Select
+                      value={assignForm.roleId === '' ? '' : String(assignForm.roleId)}
+                      onValueChange={(value) =>
+                        setAssignForm((prev) => ({ ...prev, roleId: Number(value) }))
+                      }
+                    >
+                      <SelectTrigger id="roleSelect">
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(availableRoles || []).map((role) => (
+                          <SelectItem key={role.id} value={String(role.id)}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="scopeType">Scope Type</Label>
+                    <Select
+                      value={assignForm.scopeType}
+                      onValueChange={(value) =>
+                        setAssignForm((prev) => ({
+                          ...prev,
+                          scopeType: value as ScopeType,
+                        }))
+                      }
+                    >
+                      <SelectTrigger id="scopeType">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(ScopeType).map((scope) => (
+                          <SelectItem key={scope} value={scope}>
+                            {scope}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="scopeId">Scope ID (optional)</Label>
+                    <Input
+                      id="scopeId"
+                      value={assignForm.scopeId}
+                      onChange={(e) =>
+                        setAssignForm((prev) => ({ ...prev, scopeId: e.target.value }))
+                      }
+                      placeholder="tenant_123"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="roleExpires">Expires At (optional)</Label>
+                    <Input
+                      id="roleExpires"
+                      type="datetime-local"
+                      value={assignForm.expiresAt}
+                      onChange={(e) =>
+                        setAssignForm((prev) => ({ ...prev, expiresAt: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="submit"
+                    disabled={assignForm.roleId === '' || assignRoleMutation.isPending}
+                  >
+                    {assignRoleMutation.isPending ? 'Assigning...' : 'Assign Role'}
+                  </Button>
+                  {assignRoleMutation.isError && (
+                    <p className="text-sm text-destructive">Unable to assign role.</p>
+                  )}
+                </div>
+              </form>
+
               {user.roles.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No roles assigned</p>
               ) : (
@@ -242,7 +514,13 @@ export default function UserDetailPage() {
                             {role.scopeId && ` (${role.scopeId})`}
                           </p>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive/80">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive/80"
+                          onClick={() => removeRoleMutation.mutate(role.id)}
+                          disabled={removeRoleMutation.isPending}
+                        >
                           Remove
                         </Button>
                       </div>
