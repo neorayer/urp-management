@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { roleApi } from '@/services/roleService';
@@ -5,8 +6,11 @@ import { Shield, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import RoleFormDialog from '@/components/RoleFormDialog';
 
 export default function RolesPage() {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  
   const { data: roles, isLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: roleApi.getAllRoles,
@@ -20,7 +24,10 @@ export default function RolesPage() {
           <h1 className="text-3xl font-semibold">Roles & Permissions</h1>
           <p className="text-muted-foreground">Manage roles and their permission sets.</p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button 
+          className="flex items-center gap-2"
+          onClick={() => setIsCreateDialogOpen(true)}
+        >
           <Plus className="h-5 w-5" />
           Create Role
         </Button>
@@ -68,6 +75,11 @@ export default function RolesPage() {
           ))}
         </div>
       )}
+      
+      <RoleFormDialog 
+        open={isCreateDialogOpen} 
+        onClose={() => setIsCreateDialogOpen(false)} 
+      />
     </div>
   );
 }

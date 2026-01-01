@@ -19,6 +19,7 @@ export interface User {
   username?: string;
   displayName?: string;
   avatar?: string;
+  phone?: string;
   status: UserStatus;
   emailVerified: boolean;
   mfaEnabled: boolean;
@@ -128,6 +129,12 @@ export interface CreateRoleRequest {
   permissionIds?: number[];
 }
 
+export interface UpdateRoleRequest {
+  name: string;
+  description?: string;
+  permissionIds?: number[];
+}
+
 export interface PageResponse<T> {
   content: T[];
   pageable: {
@@ -139,4 +146,21 @@ export interface PageResponse<T> {
   last: boolean;
   first: boolean;
   empty: boolean;
+}
+
+export interface UpdateUserProfileRequest {
+  displayName?: string;
+  phone?: string;
+  avatar?: string;
+  locale?: string;
+  timezone?: string;
+}
+
+export interface UpdatePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface AdminResetPasswordRequest {
+  newPassword: string;
 }

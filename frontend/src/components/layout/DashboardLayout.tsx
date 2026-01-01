@@ -7,12 +7,22 @@ import {
   LogOut,
   Menu,
   X,
+  UserCog,
+  ChevronDown,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -92,27 +102,37 @@ export default function DashboardLayout() {
           </nav>
 
           <div className="border-t p-4">
-            <div className="flex items-center">
-              <Avatar>
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {user?.displayName?.[0] || user?.email[0].toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-semibold text-foreground">
-                  {user?.displayName || user?.email}
-                </p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-              <Button
-                onClick={handleLogout}
-                variant="ghost"
-                size="icon"
-                title="Logout"
-              >
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/50 transition-colors">
+                  <Avatar>
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {user?.displayName?.[0] || user?.email[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold text-foreground">
+                      {user?.displayName || user?.email}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/profile/edit')}>
+                  <UserCog className="mr-2 h-4 w-4" />
+                  Edit Profile
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

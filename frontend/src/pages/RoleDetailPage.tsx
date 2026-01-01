@@ -1,13 +1,18 @@
-import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { roleApi, permissionApi } from '@/services/roleService';
 import { Shield, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import RoleFormDialog from '@/components/RoleFormDialog';
 
 export default function RoleDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { data: role, isLoading } = useQuery({
     queryKey: ['role', id],
@@ -19,6 +24,20 @@ export default function RoleDetailPage() {
     queryKey: ['permissions'],
     queryFn: permissionApi.getAllPermissions,
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: roleApi.deleteRole,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] });
+      navigate('/roles');
+    },
+  });
+
+  const handleDelete = () => {
+    if (role && window.confirm(`Are you sure you want to delete the role "${role.name}"?`)) {
+      deleteMutation.mutate(role.id);
+    }
+  };
 
   if (isLoading) {
     return <div className="text-center py-12">Loading...</div>;
@@ -77,11 +96,19 @@ export default function RoleDetailPage() {
 
               {!role.isSystem && (
                 <div className="pt-2 space-y-2">
-                  <Button className="w-full">
+                  <Button 
+                    className="w-full"
+                    onClick={() => setIsEditDialogOpen(true)}
+                  >
                     Edit Role
                   </Button>
-                  <Button variant="destructive" className="w-full">
-                    Delete Role
+                  <Button 
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={handleDelete}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? 'Deleting...' : 'Delete Role'}
                   </Button>
                 </div>
               )}
@@ -125,6 +152,12 @@ export default function RoleDetailPage() {
           </Card>
         </div>
       </div>
+      
+      <RoleFormDialog 
+        open={isEditDialogOpen} 
+        onClose={() => setIsEditDialogOpen(false)}
+        role={role}
+      />
     </div>
   );
 }

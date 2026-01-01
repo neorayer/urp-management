@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import { Role, CreateRoleRequest, Permission } from '@/types';
+import { Role, CreateRoleRequest, UpdateRoleRequest, Permission } from '@/types';
 
 export const roleApi = {
   getAllRoles: async (): Promise<Role[]> => {
@@ -14,6 +14,11 @@ export const roleApi = {
   
   createRole: async (data: CreateRoleRequest): Promise<Role> => {
     const response = await api.post('/admin/roles', data);
+    return response.data;
+  },
+  
+  updateRole: async (id: number, data: UpdateRoleRequest): Promise<Role> => {
+    const response = await api.put(`/admin/roles/${id}`, data);
     return response.data;
   },
   

@@ -1,6 +1,7 @@
 package com.urp.management.controller;
 
 import com.urp.management.dto.request.CreateRoleRequest;
+import com.urp.management.dto.request.UpdateRoleRequest;
 import com.urp.management.dto.response.PermissionResponse;
 import com.urp.management.dto.response.RoleResponse;
 import com.urp.management.service.RoleService;
@@ -39,6 +40,15 @@ public class RoleController {
     public ResponseEntity<RoleResponse> createRole(@Valid @RequestBody CreateRoleRequest request) {
         RoleResponse role = roleService.createRole(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(role);
+    }
+    
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('roles.write')")
+    public ResponseEntity<RoleResponse> updateRole(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateRoleRequest request) {
+        RoleResponse role = roleService.updateRole(id, request);
+        return ResponseEntity.ok(role);
     }
     
     @PutMapping("/{id}/permissions")

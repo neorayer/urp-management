@@ -2,8 +2,11 @@ package com.urp.management.service;
 
 import com.urp.management.domain.entity.*;
 import com.urp.management.domain.enums.UserStatus;
+import com.urp.management.dto.request.AdminResetPasswordRequest;
 import com.urp.management.dto.request.AssignRoleRequest;
 import com.urp.management.dto.request.CreateUserRequest;
+import com.urp.management.dto.request.UpdatePasswordRequest;
+import com.urp.management.dto.request.UpdateUserProfileRequest;
 import com.urp.management.dto.response.UserResponse;
 import com.urp.management.dto.response.UserRoleResponse;
 import com.urp.management.repository.*;
@@ -169,6 +172,69 @@ public class UserService {
                 getCurrentUserId());
     }
     
+    public UserResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (request.getDisplayName() != null) {
+            user.setDisplayName(request.getDisplayName());
+        }
+        
+        if (request.getPhone() != null) {
+            user.setPhone(request.getPhone());
+        }
+        
+        if (request.getAvatar() != null) {
+            user.setAvatar(request.getAvatar());
+        }
+        
+        if (request.getLocale() != null) {
+            user.setLocale(request.getLocale());
+        }
+        
+        if (request.getTimezone() != null) {
+            user.setTimezone(request.getTimezone());
+        }
+        
+        user = userRepository.save(user);
+        
+        auditService.log("USER_PROFILE_UPDATED", "User", userId.toString(),
+                null, getCurrentUserId());
+        
+        return mapToUserResponse(user);
+    }
+    
+    public void updatePassword(Long userId, UpdatePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        User currentUser = getCurrentUser();
+        if (!currentUser.getId().equals(userId)) {
+            throw new RuntimeException("You can only update your own password");
+        }
+        
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+        
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        
+        auditService.log("USER_PASSWORD_UPDATED", "User", userId.toString(),
+                null, getCurrentUserId());
+    }
+    
+    public void adminResetPassword(Long userId, AdminResetPasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        
+        auditService.log("USER_PASSWORD_RESET_BY_ADMIN", "User", userId.toString(),
+                null, getCurrentUserId());
+    }
+    
     private UserResponse mapToUserResponse(User user) {
         Set<UserRoleResponse> roles = user.getUserRoles().stream()
                 .map(this::mapToUserRoleResponse)
@@ -180,6 +246,7 @@ public class UserService {
                 .username(user.getUsername())
                 .displayName(user.getDisplayName())
                 .avatar(user.getAvatar())
+                .phone(user.getPhone())
                 .status(user.getStatus())
                 .emailVerified(user.getEmailVerified())
                 .mfaEnabled(user.getMfaEnabled())

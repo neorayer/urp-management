@@ -3,6 +3,7 @@ package com.urp.management.service;
 import com.urp.management.domain.entity.Permission;
 import com.urp.management.domain.entity.Role;
 import com.urp.management.dto.request.CreateRoleRequest;
+import com.urp.management.dto.request.UpdateRoleRequest;
 import com.urp.management.dto.response.PermissionResponse;
 import com.urp.management.dto.response.RoleResponse;
 import com.urp.management.repository.PermissionRepository;
@@ -63,6 +64,31 @@ public class RoleService {
         
         auditService.log("ROLE_CREATED", "Role", role.getId().toString(), 
                 null, null);
+        
+        return mapToResponse(role);
+    }
+    
+    public RoleResponse updateRole(Long roleId, UpdateRoleRequest request) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+        
+        if (role.getIsSystem()) {
+            throw new RuntimeException("Cannot modify system role");
+        }
+        
+        role.setName(request.getName());
+        role.setDescription(request.getDescription());
+        
+        if (request.getPermissionIds() != null) {
+            Set<Permission> permissions = new HashSet<>(
+                    permissionRepository.findAllById(request.getPermissionIds())
+            );
+            role.setPermissions(permissions);
+        }
+        
+        role = roleRepository.save(role);
+        
+        auditService.log("ROLE_UPDATED", "Role", roleId.toString(), null, null);
         
         return mapToResponse(role);
     }

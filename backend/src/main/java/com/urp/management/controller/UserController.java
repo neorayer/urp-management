@@ -1,8 +1,11 @@
 package com.urp.management.controller;
 
 import com.urp.management.domain.enums.UserStatus;
+import com.urp.management.dto.request.AdminResetPasswordRequest;
 import com.urp.management.dto.request.AssignRoleRequest;
 import com.urp.management.dto.request.CreateUserRequest;
+import com.urp.management.dto.request.UpdatePasswordRequest;
+import com.urp.management.dto.request.UpdateUserProfileRequest;
 import com.urp.management.dto.response.UserResponse;
 import com.urp.management.dto.response.UserRoleResponse;
 import com.urp.management.service.UserService;
@@ -83,5 +86,31 @@ public class UserController {
             @PathVariable Long userRoleId) {
         userService.removeRole(id, userRoleId);
         return ResponseEntity.noContent().build();
+    }
+    
+    @PutMapping("/{id}/profile")
+    @PreAuthorize("hasAuthority('users.write')")
+    public ResponseEntity<UserResponse> updateProfile(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUserProfileRequest request) {
+        UserResponse user = userService.updateProfile(id, request);
+        return ResponseEntity.ok(user);
+    }
+    
+    @PutMapping("/{id}/password")
+    public ResponseEntity<Void> updatePassword(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdatePasswordRequest request) {
+        userService.updatePassword(id, request);
+        return ResponseEntity.ok().build();
+    }
+    
+    @PostMapping("/{id}/reset-password")
+    @PreAuthorize("hasAuthority('users.write')")
+    public ResponseEntity<Void> adminResetPassword(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminResetPasswordRequest request) {
+        userService.adminResetPassword(id, request);
+        return ResponseEntity.ok().build();
     }
 }

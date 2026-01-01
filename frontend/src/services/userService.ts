@@ -8,6 +8,8 @@ import {
   UserRole,
   UserStatus,
   PageResponse,
+  UpdateUserProfileRequest,
+  UpdatePasswordRequest,
 } from '@/types';
 
 export const authApi = {
@@ -71,5 +73,27 @@ export const userApi = {
   
   removeRole: async (userId: number, userRoleId: number): Promise<void> => {
     await api.delete(`/admin/users/${userId}/roles/${userRoleId}`);
+  },
+  
+  updateProfile: async (
+    userId: number,
+    data: UpdateUserProfileRequest
+  ): Promise<User> => {
+    const response = await api.put(`/admin/users/${userId}/profile`, data);
+    return response.data;
+  },
+  
+  updatePassword: async (
+    userId: number,
+    data: UpdatePasswordRequest
+  ): Promise<void> => {
+    await api.put(`/admin/users/${userId}/password`, data);
+  },
+  
+  adminResetPassword: async (
+    userId: number,
+    data: { newPassword: string }
+  ): Promise<void> => {
+    await api.post(`/admin/users/${userId}/reset-password`, data);
   },
 };

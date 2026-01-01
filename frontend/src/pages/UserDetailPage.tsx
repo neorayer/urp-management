@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CreateUserRequest, ScopeType, UserStatus } from '@/types';
+import { CreateUserRequest, ScopeType, UpdateUserProfileRequest, UserStatus } from '@/types';
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +43,18 @@ export default function UserDetailPage() {
     scopeId: '',
     expiresAt: '',
   });
+  const [editProfileData, setEditProfileData] = useState<UpdateUserProfileRequest>({
+    displayName: '',
+    phone: '',
+    avatar: '',
+    locale: '',
+    timezone: '',
+  });
+  const [resetPasswordData, setResetPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['user', id],
@@ -127,15 +139,71 @@ export default function UserDetailPage() {
     },
   });
   
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: UpdateUserProfileRequest) => 
+      userApi.updateProfile(Number(id), data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', id] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+
+  const adminResetPasswordMutation = useMutation({
+    mutationFn: (data: { newPassword: string }) => 
+      userApi.adminResetPassword(Number(id), data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', id] });
+      setResetPasswordData({ newPassword: '', confirmPassword: '' });
+      setShowPasswordReset(false);
+    },
+  });
+  
   useEffect(() => {
     if (user) {
       setStatusUpdate(user.status);
     }
   }, [user]);
 
+  useEffect(() => {
+    if (user) {
+      setEditProfileData({
+        displayName: user.displayName || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
+        locale: user.locale || '',
+        timezone: user.timezone || '',
+      });
+    }
+  }, [user]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createUserMutation.mutate(formData);
+  };
+
+  const handleProfileUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || isNewUser) return;
+    updateProfileMutation.mutate(editProfileData);
+  };
+
+  const handlePasswordReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || isNewUser) return;
+    
+    if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+      alert('Passwords do not match!');
+      return;
+    }
+    
+    if (resetPasswordData.newPassword.length < 8) {
+      alert('Password must be at least 8 characters long!');
+      return;
+    }
+    
+    if (window.confirm('Are you sure you want to reset this user\'s password? This action cannot be undone.')) {
+      adminResetPasswordMutation.mutate({ newPassword: resetPasswordData.newPassword });
+    }
   };
 
   // Check for new user first before loading states
@@ -404,6 +472,156 @@ export default function UserDetailPage() {
                   )}
                 </form>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border/70">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Edit Profile (Admin)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleProfileUpdate} className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="editDisplayName">Display Name</Label>
+                    <Input
+                      id="editDisplayName"
+                      value={editProfileData.displayName || ''}
+                      onChange={(e) => setEditProfileData({ ...editProfileData, displayName: e.target.value })}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editPhone">Phone</Label>
+                    <Input
+                      id="editPhone"
+                      type="tel"
+                      value={editProfileData.phone || ''}
+                      onChange={(e) => setEditProfileData({ ...editProfileData, phone: e.target.value })}
+                      placeholder="+1234567890"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="editAvatar">Avatar URL</Label>
+                  <Input
+                    id="editAvatar"
+                    value={editProfileData.avatar || ''}
+                    onChange={(e) => setEditProfileData({ ...editProfileData, avatar: e.target.value })}
+                    placeholder="https://example.com/avatar.jpg"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="editLocale">Locale</Label>
+                    <Input
+                      id="editLocale"
+                      value={editProfileData.locale || ''}
+                      onChange={(e) => setEditProfileData({ ...editProfileData, locale: e.target.value })}
+                      placeholder="en-US"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editTimezone">Timezone</Label>
+                    <Input
+                      id="editTimezone"
+                      value={editProfileData.timezone || ''}
+                      onChange={(e) => setEditProfileData({ ...editProfileData, timezone: e.target.value })}
+                      placeholder="America/New_York"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={updateProfileMutation.isPending}>
+                    {updateProfileMutation.isPending ? 'Updating...' : 'Update Profile'}
+                  </Button>
+                </div>
+                
+                {updateProfileMutation.isSuccess && (
+                  <p className="text-sm text-green-600">Profile updated successfully!</p>
+                )}
+                {updateProfileMutation.isError && (
+                  <p className="text-sm text-destructive">Failed to update profile.</p>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border/70">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Reset Password (Admin)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!showPasswordReset ? (
+                <Button onClick={() => setShowPasswordReset(true)} variant="outline">
+                  Show Password Reset Form
+                </Button>
+              ) : (
+                <form onSubmit={handlePasswordReset} className="space-y-4">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm text-amber-800">
+                      ⚠️ This will reset the user's password without requiring their current password. 
+                      The user will be able to log in with the new password immediately.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      required
+                      minLength={8}
+                      value={resetPasswordData.newPassword}
+                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
+                      placeholder="Minimum 8 characters"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      required
+                      minLength={8}
+                      value={resetPasswordData.confirmPassword}
+                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                      placeholder="Re-enter password"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <Button 
+                      type="submit" 
+                      variant="destructive"
+                      disabled={adminResetPasswordMutation.isPending}
+                    >
+                      {adminResetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        setShowPasswordReset(false);
+                        setResetPasswordData({ newPassword: '', confirmPassword: '' });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  
+                  {adminResetPasswordMutation.isSuccess && (
+                    <p className="text-sm text-green-600">Password reset successfully!</p>
+                  )}
+                  {adminResetPasswordMutation.isError && (
+                    <p className="text-sm text-destructive">Failed to reset password.</p>
+                  )}
+                </form>
+              )}
             </CardContent>
           </Card>
 

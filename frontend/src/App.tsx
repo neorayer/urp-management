@@ -5,6 +5,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import UserDetailPage from './pages/UserDetailPage';
+import UserProfileEditPage from './pages/UserProfileEditPage';
 import RolesPage from './pages/RolesPage';
 import RoleDetailPage from './pages/RoleDetailPage';
 import AuditLogsPage from './pages/AuditLogsPage';
@@ -33,6 +34,7 @@ function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="profile/edit" element={<UserProfileEditPage />} />
         <Route path="users">
           <Route index element={<UsersPage />} />
           <Route path=":id" element={<UserDetailPage />} />
