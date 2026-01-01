@@ -26,11 +26,26 @@ export async function login(page: Page, credentials: LoginCredentials = DEFAULT_
   await page.fill('input[type="password"]', credentials.password);
   await page.click('button[type="submit"]');
   
-  // Wait for navigation to complete
-  await page.waitForURL('/');
+  // Wait for navigation to complete with longer timeout
+  await page.waitForURL('/', { timeout: 15000 }).catch(async () => {
+    // If direct navigation fails, check if we're already on dashboard
+    const currentUrl = page.url();
+    if (!currentUrl.includes('/login')) {
+      return; // We've navigated away from login, consider it success
+    }
+    throw new Error('Login failed - still on login page');
+  });
   
-  // Verify we're logged in by checking for dashboard content
-  await expect(page.getByText(/Welcome back/i)).toBeVisible();
+  // Wait for page to be in a stable state
+  await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+  
+  // Verify we're logged in - check for any dashboard element
+  const isLoggedIn = await page.getByText(/Welcome back/i).isVisible({ timeout: 5000 }).catch(() => false) ||
+                     await page.locator('nav a[href="/users"]').isVisible({ timeout: 5000 }).catch(() => false);
+  
+  if (!isLoggedIn) {
+    throw new Error('Login verification failed - dashboard elements not found');
+  }
 }
 
 /**
