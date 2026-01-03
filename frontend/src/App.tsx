@@ -8,6 +8,8 @@ import UserDetailPage from './pages/UserDetailPage';
 import UserProfileEditPage from './pages/UserProfileEditPage';
 import RolesPage from './pages/RolesPage';
 import RoleDetailPage from './pages/RoleDetailPage';
+import TenantsPage from './pages/TenantsPage';
+import TenantDetailPage from './pages/TenantDetailPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,6 +44,10 @@ function App() {
         <Route path="roles">
           <Route index element={<RolesPage />} />
           <Route path=":id" element={<RoleDetailPage />} />
+        </Route>
+        <Route path="tenants">
+          <Route index element={<TenantsPage />} />
+          <Route path=":id" element={<TenantDetailPage />} />
         </Route>
         <Route path="audit-logs" element={<AuditLogsPage />} />
       </Route>

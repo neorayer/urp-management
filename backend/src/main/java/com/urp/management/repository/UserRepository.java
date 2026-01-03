@@ -24,6 +24,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     boolean existsByUsername(String username);
     
+    long countByTenantId(Long tenantId);
+    
     @Query("SELECT u FROM User u WHERE " +
            "(:query IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%')) " +

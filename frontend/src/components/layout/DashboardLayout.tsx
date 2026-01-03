@@ -9,6 +9,7 @@ import {
   X,
   UserCog,
   ChevronDown,
+  Building2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -27,6 +28,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Users', href: '/users', icon: Users },
+  { name: 'Tenants', href: '/tenants', icon: Building2 },
   { name: 'Roles & Permissions', href: '/roles', icon: Shield },
   { name: 'Audit Logs', href: '/audit-logs', icon: FileText },
 ];

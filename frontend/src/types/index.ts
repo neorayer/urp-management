@@ -13,6 +13,13 @@ export enum ScopeType {
   RESOURCE = 'RESOURCE',
 }
 
+export enum TenantStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  TRIAL = 'TRIAL',
+  INACTIVE = 'INACTIVE',
+}
+
 export interface User {
   id: number;
   email: string;
@@ -163,4 +170,33 @@ export interface UpdatePasswordRequest {
 
 export interface AdminResetPasswordRequest {
   newPassword: string;
+}
+
+export interface Tenant {
+  id: number;
+  name: string;
+  slug: string;
+  domain?: string;
+  status: TenantStatus;
+  createdAt: string;
+  suspendedAt?: string;
+  trialEndsAt?: string;
+  userCount: number;
+}
+
+export interface CreateTenantRequest {
+  name: string;
+  slug: string;
+  domain?: string;
+  status?: TenantStatus;
+  settings?: string;
+  trialEndsAt?: string;
+}
+
+export interface UpdateTenantRequest {
+  name?: string;
+  domain?: string;
+  status?: TenantStatus;
+  settings?: string;
+  trialEndsAt?: string;
 }
